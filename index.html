@@ -595,6 +595,7 @@ input::placeholder, textarea::placeholder { color: var(--dim); }
   background: rgba(255,107,107,.07);
 }
 
+
 /* ─── PREPOSITION CARDS ─── */
 .gl-gold { color: var(--gold); }
 .prep-grid { display: flex; flex-direction: column; gap: 10px; }
@@ -1024,6 +1025,7 @@ function doParse(dateStr) {
 }
 
 const _dictCache = {};
+const _dictGain = 2.5;
 
 function isMobile() {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -1045,6 +1047,26 @@ async function fetchDictAudio(word, lang) {
   return _dictCache[key];
 }
 
+async function playDictAudio(url) {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AudioCtx();
+    const res = await fetch(url);
+    const buf = await res.arrayBuffer();
+    const decoded = await ctx.decodeAudioData(buf);
+    const src  = ctx.createBufferSource();
+    src.buffer = decoded;
+    const gain = ctx.createGain();
+    gain.gain.value = _dictGain;
+    src.connect(gain);
+    gain.connect(ctx.destination);
+    src.start(0);
+    src.onended = () => ctx.close();
+  } catch {
+    const a = new Audio(url); a.play();
+  }
+}
+
 async function spk(btn) {
   const text   = btn.dataset.text;
   const lang   = btn.dataset.lang;
@@ -1052,7 +1074,7 @@ async function spk(btn) {
 
   if (isMobile() && isWord) {
     const audioUrl = await fetchDictAudio(text, lang);
-    if (audioUrl) { new Audio(audioUrl).play(); return; }
+    if (audioUrl) { await playDictAudio(audioUrl); return; }
   }
 
   if (!window.speechSynthesis) { toast('⚠ 瀏覽器不支援語音'); return; }
