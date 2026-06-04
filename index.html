@@ -9,20 +9,20 @@
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-  --bg:      #0a0a0f;
-  --s1:      #13131a;
-  --s2:      #1a1a24;
-  --s3:      #0f0f18;
+  --bg:      #0c0c12;
+  --s1:      #16161f;
+  --s2:      #1e1e2a;
+  --s3:      #111118;
   --cyan:    #00e5ff;
-  --purple:  #7b61ff;
-  --red:     #ff6b6b;
+  --purple:  #8b76ff;
+  --red:     #ff7070;
   --gold:    #ffd166;
   --green:   #00c896;
-  --text:    #e8e8f0;
-  --text2:   #a8a8c0;
-  --muted:   #6b6b85;
-  --dim:     #2a2a3a;
-  --border:  rgba(255,255,255,0.07);
+  --text:    #eeeef5;
+  --text2:   #c0c0d8;
+  --muted:   #9090ac;
+  --dim:     #32324a;
+  --border:  rgba(255,255,255,0.1);
 }
 
 html { scroll-behavior: smooth; }
@@ -410,10 +410,10 @@ btn, button { cursor: pointer; font-family: inherit; border: none; outline: none
 
 .chk-label {
   font-family: 'Syne', sans-serif;
-  font-size: 12px; font-weight: 700; margin-bottom: 2px;
+  font-size: 13px; font-weight: 700; margin-bottom: 3px;
 }
 
-.chk-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.chk-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
 
 .fl { display: block; margin-bottom: 6px;
   font-family: 'Syne', sans-serif;
@@ -491,9 +491,9 @@ input::placeholder, textarea::placeholder { color: var(--dim); }
   font-size: 15px; font-weight: 700; color: var(--cyan);
   margin-bottom: 3px; line-height: 1.4;
 }
-.pc-zh { font-size: 13px; color: var(--text2); margin-bottom: 8px; }
+.pc-zh { font-size: 14px; color: var(--text2); margin-bottom: 8px; }
 .pc-ex {
-  font-size: 13px; color: var(--text2);
+  font-size: 14px; color: var(--text);
   background: rgba(0,229,255,.04);
   border-left: 2px solid rgba(0,229,255,.2);
   border-radius: 0 6px 6px 0;
@@ -515,10 +515,10 @@ input::placeholder, textarea::placeholder { color: var(--dim); }
   font-family: 'Syne', sans-serif;
   font-size: 17px; font-weight: 700; color: var(--purple);
 }
-.wc-ph { font-size: 12px; color: var(--muted); }
-.wc-zh { font-size: 13px; color: var(--text2); margin-bottom: 8px; }
+.wc-ph { font-size: 13px; color: var(--text2); }
+.wc-zh { font-size: 14px; color: var(--text2); margin-bottom: 8px; }
 .wc-ex {
-  font-size: 13px; color: var(--text2);
+  font-size: 14px; color: var(--text);
   background: rgba(123,97,255,.05);
   border-left: 2px solid rgba(123,97,255,.2);
   border-radius: 0 6px 6px 0;
@@ -526,7 +526,7 @@ input::placeholder, textarea::placeholder { color: var(--dim); }
 }
 
 .ex-zh {
-  font-size: 11px; color: var(--muted);
+  font-size: 12px; color: var(--muted);
   margin-top: 5px; padding-left: 2px;
   line-height: 1.5;
 }
@@ -1129,17 +1129,26 @@ function copyPrompt() {
   const ytUrl = document.getElementById('yt-url')?.value.trim() || '';
   const ytLine = ytUrl ? `YouTube 連結：${ytUrl}\n\n` : '';
   const text = ytLine + PROMPT;
-  navigator.clipboard?.writeText(text)
-    .then(()=>toast('✓ 提示詞已複製'))
-    .catch(()=>{
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      toast('✓ 提示詞已複製');
-    });
+
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    toast('✓ 提示詞已複製');
+  };
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text)
+      .then(() => toast('✓ 提示詞已複製'))
+      .catch(fallback);
+  } else {
+    fallback();
+  }
 }
 
 /* ════════════════════════════════════
