@@ -1023,11 +1023,42 @@ function doParse(dateStr) {
   toast('✓ 解析完成');
 }
 
-function spk(btn) {
+const _dictCache = {};
+
+function isMobile() {
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+}
+
+async function fetchDictAudio(word, lang) {
+  const key = `${word}_${lang}`;
+  if (key in _dictCache) return _dictCache[key];
+  try {
+    const res  = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
+    if (!res.ok) { _dictCache[key] = null; return null; }
+    const data = await res.json();
+    const phonetics = data[0]?.phonetics || [];
+    const prefer = lang === 'en-GB' ? '-uk' : '-us';
+    const match  = phonetics.find(p => p.audio?.includes(prefer))
+                || phonetics.find(p => p.audio);
+    _dictCache[key] = match?.audio || null;
+  } catch { _dictCache[key] = null; }
+  return _dictCache[key];
+}
+
+async function spk(btn) {
+  const text   = btn.dataset.text;
+  const lang   = btn.dataset.lang;
+  const isWord = btn.dataset.type === 'word';
+
+  if (isMobile() && isWord) {
+    const audioUrl = await fetchDictAudio(text, lang);
+    if (audioUrl) { new Audio(audioUrl).play(); return; }
+  }
+
   if (!window.speechSynthesis) { toast('⚠ 瀏覽器不支援語音'); return; }
   window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(btn.dataset.text);
-  u.lang = btn.dataset.lang;
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = lang;
   u.rate = 0.88;
   window.speechSynthesis.speak(u);
 }
@@ -1036,11 +1067,12 @@ const SPK_ICON  = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" s
 const PLAY_ICON = `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="vertical-align:-1px"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
 const STOP_ICON = `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="vertical-align:-1px"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>`;
 
-function speakBtns(text) {
-  const t = esc(text);
+function speakBtns(text, type='') {
+  const t  = esc(text);
+  const dt = type ? ` data-type="${type}"` : '';
   return `<div class="speak-grp">
-    <button class="speak-btn" data-text="${t}" data-lang="en-US" onclick="spk(this)">${SPK_ICON} US</button>
-    <button class="speak-btn uk" data-text="${t}" data-lang="en-GB" onclick="spk(this)">${SPK_ICON} UK</button>
+    <button class="speak-btn" data-text="${t}" data-lang="en-US"${dt} onclick="spk(this)">${SPK_ICON} US</button>
+    <button class="speak-btn uk" data-text="${t}" data-lang="en-GB"${dt} onclick="spk(this)">${SPK_ICON} UK</button>
   </div>`;
 }
 
@@ -1090,7 +1122,7 @@ function buildCards(c) {
               ${w.phonetic?`<span class="wc-ph">${esc(w.phonetic)}</span>`:''}
             </div>
             <div class="wc-zh">${esc(w.zh||'')}</div>
-            ${speakBtns(w.word)}
+            ${speakBtns(w.word,'word')}
             ${w.example ? exRow(w.example,'wc-ex',w.example_zh||'') : ''}
           </div>`).join('')}
       </div>
