@@ -468,6 +468,17 @@ input::placeholder, textarea::placeholder { color: var(--dim); }
 /* ─── RESULT CARDS ─── */
 .results { display: flex; flex-direction: column; gap: 24px; margin-top: 20px; }
 
+.gl-muted { color: var(--muted); }
+
+.transcript-list { display: flex; flex-direction: column; gap: 8px; }
+.transcript-item {
+  font-size: 14px; color: var(--text2);
+  line-height: 1.85; padding: 11px 14px;
+  background: var(--s2); border-radius: 8px;
+  border-left: 2px solid var(--dim);
+}
+.hl { color: var(--cyan); }
+
 .group-label {
   font-family: 'Syne', sans-serif;
   font-size: 11px; font-weight: 700; letter-spacing: .18em;
@@ -1030,9 +1041,10 @@ function doParse(dateStr) {
   catch { errEl.style.display = 'block'; return; }
 
   const parsed = {
-    phrases:     (json.phrases||[]).filter(p=>p&&p.en),
-    words:       (json.words||json.vocabulary||[]).filter(w=>w&&w.word),
-    prepositions:(json.prepositions||[]).filter(p=>p&&p.phrase),
+    transcript:   (json.transcript||[]).filter(s=>typeof s==='string'&&s.trim()),
+    phrases:      (json.phrases||[]).filter(p=>p&&p.en),
+    words:        (json.words||json.vocabulary||[]).filter(w=>w&&w.word),
+    prepositions: (json.prepositions||[]).filter(p=>p&&p.phrase),
   };
 
   const all = db();
@@ -1129,13 +1141,27 @@ function exRow(text, colorClass, zhText='') {
   </div>`;
 }
 
+function parseHl(escaped) {
+  return escaped.replace(/\[\[(.+?)\]\]/g, '<span class="hl">$1</span>');
+}
+
 function buildCards(c) {
-  const phrases = c.phrases||[];
-  const words   = c.words||[];
-  const preps   = c.prepositions||[];
-  if (!phrases.length && !words.length && !preps.length) return '';
+  const transcript = c.transcript||[];
+  const phrases    = c.phrases||[];
+  const words      = c.words||[];
+  const preps      = c.prepositions||[];
+  if (!transcript.length && !phrases.length && !words.length && !preps.length) return '';
 
   let h = '<div class="results">';
+
+  if (transcript.length) {
+    h += `<div>
+      <div class="group-label gl-muted">逐字稿 Transcript</div>
+      <div class="transcript-list">
+        ${transcript.map(line => `<div class="transcript-item">${parseHl(esc(line))}</div>`).join('')}
+      </div>
+    </div>`;
+  }
 
   if (phrases.length) {
     h += `<div>
@@ -1203,15 +1229,21 @@ const PROMPT = `請分析以下 YouTube 影片的英文學習重點，輸出純 
   ]
 }
 
-請抓出：
+規則：
 - phrases：4–8 個值得學習的片語、句型或慣用語
 - words：5–10 個重要單字（含 IPA 音標）
-- prepositions：影片中出現的介系詞用法（如有則列出，沒有則給空陣列 []）
+- prepositions：影片中出現的介系詞用法（無則給 []）
 
-例句方向：優先使用影片中出現的原句或近似句，若影片無適合句子，再從以下情境擇 1–2 個自行生成：
+例句方向：優先使用影片中出現的原句或近似句，若無適合句子，再從以下情境擇 1–2 個自行生成：
 生活對話、職場會議、簡報報告、商業談判、面試求職、描述說明、表達意見
 
-請直接開啟上方 YouTube 連結，取得影片字幕或逐字稿後進行分析。若無法存取字幕，請根據影片標題與主題自行推測內容，生成符合該主題的句型、單字與例句，不需告知無法存取。`;
+請直接開啟上方 YouTube 連結進行分析。
+
+重要規則（必須遵守）：
+- 不得詢問使用者提供任何資料，直接輸出 JSON
+- 無法取得字幕但能識別影片主題：根據標題自行推測內容生成
+- 完全無法取得任何影片資訊（標題、描述、內容皆無）：只回覆「此影片無法取得任何資料」，不要硬生無關內容
+- 其他情況禁止回覆說明文字或問題，只輸出 JSON`;
 
 function copyPrompt() {
   const ytUrl = document.getElementById('yt-url')?.value.trim() || '';
