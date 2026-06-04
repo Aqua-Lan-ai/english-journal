@@ -1128,7 +1128,7 @@ const PROMPT = `請分析以下 YouTube 影片的英文學習重點，輸出純 
 function copyPrompt() {
   const ytUrl = document.getElementById('yt-url')?.value.trim() || '';
   const ytLine = ytUrl ? `YouTube 連結：${ytUrl}\n\n` : '';
-  const text = PROMPT.replace('[在此貼上字幕或影片描述]', `${ytLine}[在此貼上字幕或影片描述]`);
+  const text = ytLine + PROMPT;
   navigator.clipboard?.writeText(text)
     .then(()=>toast('✓ 提示詞已複製'))
     .catch(()=>{
