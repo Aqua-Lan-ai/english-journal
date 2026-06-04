@@ -635,7 +635,27 @@ input::placeholder, textarea::placeholder { color: var(--dim); }
 
 /* ─── RESPONSIVE ─── */
 @media (max-width: 600px) {
-  /* Mobile typography boost */
+  /* Section cards → edge-to-edge, no side chrome */
+  .day-body {
+    padding: 8px 0 60px;
+    gap: 2px;
+  }
+  .card {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+  .card-head { padding: 11px 16px; }
+  .card-body { padding: 14px 16px; }
+
+  /* Content cards keep their own style */
+  .pc, .wc, .prpc { border-radius: 10px; }
+
+  /* Section gaps between content cards */
+  .phrase-grid, .word-grid, .prep-grid { gap: 8px; }
+  .results { gap: 20px; }
+
+  /* Typography boost */
   .pc-en    { font-size: 16px; }
   .pc-zh    { font-size: 15px; }
   .pc-ex    { font-size: 15px; }
@@ -649,7 +669,6 @@ input::placeholder, textarea::placeholder { color: var(--dim); }
   .prpc-ex  { font-size: 15px; }
   .chk-label { font-size: 14px; }
   .chk-desc  { font-size: 13px; }
-  .card-body { padding: 16px 14px; }
 }
 
 @media (max-width: 480px) {
