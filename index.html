@@ -200,7 +200,7 @@ btn, button { cursor: pointer; font-family: inherit; border: none; outline: none
 /* ─── DAY VIEW ─── */
 .day-topbar {
   position: sticky; top: 0; z-index: 80;
-  background: rgba(10,10,15,.88);
+  background: rgba(10,10,15,.9);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border);
   padding: 13px 20px;
@@ -258,7 +258,7 @@ btn, button { cursor: pointer; font-family: inherit; border: none; outline: none
 #yt-sticky-player.playing {
   position: sticky;
   top: 62px;
-  box-shadow: 0 8px 36px rgba(0,0,0,.7);
+  box-shadow: 0 8px 36px rgba(0,0,0,.65);
 }
 #yt-sticky-player.playing .yt-frame {
   aspect-ratio: unset;
@@ -551,9 +551,8 @@ input::placeholder, textarea::placeholder { color: var(--dim); }
 .speak-btn.uk:hover { background: rgba(123,97,255,.18); }
 .speak-btn.sm { font-size: 9px; padding: 2px 7px; }
 
-.ex-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.ex-row .ex-text { flex: 1; }
-.ex-row .ex-btns { display: flex; gap: 4px; flex-shrink: 0; margin-top: 1px; }
+.ex-block { display: flex; flex-direction: column; gap: 5px; }
+.speak-grp-sm { display: flex; gap: 5px; }
 
 /* ─── PLAY ALL BAR ─── */
 .play-all-bar {
@@ -634,15 +633,30 @@ input::placeholder, textarea::placeholder { color: var(--dim); }
 #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* ─── RESPONSIVE ─── */
+@media (max-width: 600px) {
+  /* Mobile typography boost */
+  .pc-en    { font-size: 16px; }
+  .pc-zh    { font-size: 15px; }
+  .pc-ex    { font-size: 15px; }
+  .wc-word  { font-size: 18px; }
+  .wc-zh    { font-size: 15px; }
+  .wc-ex    { font-size: 15px; }
+  .wc-ph    { font-size: 14px; }
+  .ex-zh    { font-size: 13px; }
+  .prpc-phrase { font-size: 15px; }
+  .prpc-zh  { font-size: 15px; }
+  .prpc-ex  { font-size: 15px; }
+  .chk-label { font-size: 14px; }
+  .chk-desc  { font-size: 13px; }
+  .card-body { padding: 16px 14px; }
+}
+
 @media (max-width: 480px) {
   .yt-row { flex-direction: column; }
   .dcell  { min-height: 56px; border-radius: 8px; padding: 6px 3px; }
   .dnum   { font-size: 12px; }
   .day-date-label { font-size: 12px; }
-  .card-body { padding: 16px; }
   .card-hint { display: none; }
-  .pc-en { font-size: 14px; }
-  .wc-word { font-size: 15px; }
 }
 </style>
 </head>
@@ -726,6 +740,7 @@ function manualSave(dateStr) {
    CALENDAR VIEW
 ════════════════════════════════════ */
 function showCalendar() {
+  clearYtSticky();
   history.pushState({}, '', '#');
   const t   = today();
   const all = db();
@@ -934,6 +949,7 @@ function renderDay(dateStr) {
 
     </div>
   `;
+  if (vid) setupYtSticky();
 }
 
 /* ─── YouTube loader ─── */
@@ -950,6 +966,7 @@ async function loadVid(dateStr) {
         allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture"
         allowfullscreen></iframe></div>`
     : `<div class="yt-empty"><div class="yt-empty-icon">▶</div><div>無法辨識連結，請確認 YouTube URL</div></div>`;
+  setupYtSticky();
   schedSave(dateStr);
 
   if (id) {
@@ -1029,12 +1046,10 @@ function speakBtns(text) {
 
 function exRow(text, colorClass, zhText='') {
   const t = esc(text);
-  return `<div class="ex-row">
-    <div class="ex-text">
-      <div class="${colorClass}">${t}</div>
-      ${zhText ? `<div class="ex-zh">${esc(zhText)}</div>` : ''}
-    </div>
-    <div class="ex-btns">
+  return `<div class="ex-block">
+    <div class="${colorClass}">${t}</div>
+    ${zhText ? `<div class="ex-zh">${esc(zhText)}</div>` : ''}
+    <div class="speak-grp-sm">
       <button class="speak-btn sm" data-text="${t}" data-lang="en-US" onclick="spk(this)">${SPK_ICON} US</button>
       <button class="speak-btn sm uk" data-text="${t}" data-lang="en-GB" onclick="spk(this)">${SPK_ICON} UK</button>
     </div>
@@ -1268,31 +1283,64 @@ function setPlayState(playing) {
     : `${PLAY_ICON} 播放所有例句`;
 }
 
-/* ─── YouTube play-state & error detection ─── */
+/* ─── YouTube sticky ─── */
+let _ytScroll   = null;
+let _ytPlaying  = false;
+let _ytTriggerY = 0;
+
+function setupYtSticky() {
+  clearYtSticky();
+  const player = document.getElementById('yt-sticky-player');
+  if (!player || !player.querySelector('iframe')) return;
+
+  player.classList.remove('playing');
+  _ytTriggerY = player.getBoundingClientRect().top + window.scrollY - 62;
+
+  _ytScroll = () => updateSticky();
+  window.addEventListener('scroll', _ytScroll, { passive: true });
+}
+
+function updateSticky() {
+  const player = document.getElementById('yt-sticky-player');
+  if (!player) { clearYtSticky(); return; }
+  player.classList.toggle('playing', _ytPlaying && window.scrollY > _ytTriggerY);
+}
+
+function clearYtSticky() {
+  if (_ytScroll) { window.removeEventListener('scroll', _ytScroll); _ytScroll = null; }
+  _ytPlaying = false;
+  document.getElementById('yt-sticky-player')?.classList.remove('playing');
+}
+
+/* ─── YouTube postMessage: play state + error ─── */
 window.addEventListener('message', function(e) {
   if (e.origin !== 'https://www.youtube.com') return;
   try {
     const data = JSON.parse(e.data);
+    if (!data.info) return;
 
-    // Embedding blocked (error 100/101/150/151)
-    if (data.event === 'infoDelivery' && data.info?.error) {
+    // Embedding blocked
+    if (data.info.error) {
       showYtFallback(_curYtId, _curYtUrl);
       return;
     }
 
-    // Play state
-    if (data.event === 'infoDelivery' && data.info && 'playerState' in data.info) {
-      const player = document.getElementById('yt-sticky-player');
-      if (!player) return;
-      const isPlaying = data.info.playerState === 1 || data.info.playerState === 3;
-      player.classList.toggle('playing', isPlaying);
+    // Play state: 1=playing, 3=buffering, else=stopped/paused
+    if ('playerState' in data.info) {
+      _ytPlaying = data.info.playerState === 1 || data.info.playerState === 3;
+      updateSticky();
     }
   } catch {}
 });
 
 function showYtFallback(id, url) {
-  const box = document.getElementById('yt-box');
+  const box    = document.getElementById('yt-box');
+  const player = document.getElementById('yt-sticky-player');
   if (!box || !id) return;
+
+  // Stop sticky immediately — thumbnail never sticks
+  clearYtSticky();
+
   const thumb = `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
   box.innerHTML = `
     <div class="yt-thumb" onclick="window.open('${esc(url)}','_blank')">
@@ -1306,7 +1354,6 @@ function showYtFallback(id, url) {
         <div class="yt-thumb-notice">此影片不支援嵌入，點擊在 YouTube 開啟</div>
       </div>
     </div>`;
-  document.getElementById('yt-sticky-player')?.classList.remove('playing');
 }
 
 /* ─── Init ─── */
