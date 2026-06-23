@@ -320,6 +320,25 @@ btn, button { cursor: pointer; font-family: inherit; border: none; outline: none
 }
 .yt-go:hover { background: rgba(255,107,107,.18); }
 
+/* ─── CONTENT MODE TOGGLE ─── */
+.content-mode-toggle {
+  display: flex; gap: 4px;
+  background: var(--s3); border-radius: 9px; padding: 4px;
+  margin-bottom: 14px;
+}
+.mode-btn {
+  flex: 1;
+  background: none; border: 1px solid transparent; border-radius: 6px;
+  padding: 8px 14px;
+  font-family: 'Syne', sans-serif;
+  font-size: 11px; font-weight: 700; letter-spacing: .06em;
+  color: var(--muted); cursor: pointer; transition: all .15s;
+}
+.mode-btn.active {
+  background: var(--s1); color: var(--red);
+  border-color: rgba(255,107,107,.25);
+}
+
 .yt-title {
   font-size: 12px; color: var(--text2); font-weight: 400;
   line-height: 1.5; margin-top: 2px; margin-bottom: 4px;
@@ -705,7 +724,7 @@ function db()           { try { return JSON.parse(localStorage.getItem(KEY)||'{}
 function dbWrite(d)     { localStorage.setItem(KEY, JSON.stringify(d)); }
 function dayRead(k)     { return db()[k] || {}; }
 function dayWrite(k, p) { const a=db(); a[k]={...(a[k]||{}), ...p}; dbWrite(a); }
-function hasEntry(k)    { const e=db()[k]; return !!(e&&(e.ytUrl||e.note||e.parsed)); }
+function hasEntry(k)    { const e=db()[k]; return !!(e&&(e.ytUrl||e.note||e.parsed||e.textContent||e.contentTitle)); }
 
 /* ════════════════════════════════════
    Helpers
@@ -751,15 +770,18 @@ function schedSave(dateStr) {
 }
 
 function flushSave(dateStr) {
-  const ytUrl    = document.getElementById('yt-url')?.value   || '';
-  const note     = document.getElementById('listen-note')?.value || '';
-  const rawInput = document.getElementById('raw-input')?.value  || '';
+  const ytUrl       = document.getElementById('yt-url')?.value        || '';
+  const note        = document.getElementById('listen-note')?.value   || '';
+  const rawInput    = document.getElementById('raw-input')?.value     || '';
+  const contentTitle= document.getElementById('content-title')?.value || '';
+  const textContent = document.getElementById('text-content')?.value  || '';
+  const contentMode = document.getElementById('mode-text')?.classList.contains('active') ? 'text' : 'video';
   const checks   = {
     c1: document.getElementById('c1')?.classList.contains('done'),
     c2: document.getElementById('c2')?.classList.contains('done'),
     c3: document.getElementById('c3')?.classList.contains('done'),
   };
-  dayWrite(dateStr, { ytUrl, note, rawInput, checks });
+  dayWrite(dateStr, { ytUrl, note, rawInput, checks, contentTitle, textContent, contentMode });
 }
 
 function manualSave(dateStr) {
@@ -801,7 +823,7 @@ function showCalendar() {
   for (let d=1; d<=total; d++) {
     const ds  = `${navYear}-${String(navMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const cls = ['dcell', ds===t?'is-today':'', hasEntry(ds)?'has-dot':''].filter(Boolean).join(' ');
-    const topic = all[ds]?.ytTitle || '';
+    const topic = all[ds]?.contentTitle || all[ds]?.ytTitle || '';
     cells += `<div class="${cls}" onclick="showDay('${ds}')">
       <span class="dnum">${d}</span>
       <span class="dot"></span>
@@ -879,28 +901,45 @@ function renderDay(dateStr) {
 
     <div class="day-body">
 
-      <!-- 01 YouTube — URL input card -->
+      <!-- 01 今日內容 -->
       <div class="card">
         <div class="card-head">
           <span class="sec-badge b-red">01</span>
-          <span class="card-title">今日影片</span>
-          <span class="card-hint">貼上 YouTube 連結</span>
+          <span class="card-title">今日內容</span>
+          <span class="card-hint">影片或短文</span>
         </div>
         <div class="card-body">
-          <div class="yt-row">
-            <input id="yt-url" class="yt-field" type="text"
-              placeholder="https://www.youtube.com/watch?v=..."
-              value="${esc(d.ytUrl||'')}"
-              oninput="schedSave('${dateStr}')"
-              onkeydown="if(event.key==='Enter')loadVid('${dateStr}')">
-            <button class="yt-go" onclick="loadVid('${dateStr}')">載入 ▶</button>
+          <div class="content-mode-toggle">
+            <button class="mode-btn${d.contentMode==='text'?'':' active'}" id="mode-video" onclick="switchMode('video','${dateStr}')">▶ 影片</button>
+            <button class="mode-btn${d.contentMode==='text'?' active':''}" id="mode-text" onclick="switchMode('text','${dateStr}')">≡ 短文</button>
           </div>
-          ${d.ytTitle ? `<div id="yt-title" class="yt-title">${esc(d.ytTitle)}</div>` : `<div id="yt-title" class="yt-title" style="display:none"></div>`}
+          <label class="fl">自訂標題（顯示於日曆，選填）</label>
+          <input type="text" id="content-title"
+            value="${esc(d.contentTitle||'')}"
+            placeholder="${d.contentMode==='text' ? '留空則不顯示於日曆' : '留空則自動帶影片名稱（若有）'}"
+            oninput="schedSave('${dateStr}')"
+            style="margin-bottom:14px">
+          <div id="video-mode-content"${d.contentMode==='text'?' style="display:none"':''}>
+            <div class="yt-row">
+              <input id="yt-url" class="yt-field" type="text"
+                placeholder="https://www.youtube.com/watch?v=..."
+                value="${esc(d.ytUrl||'')}"
+                oninput="schedSave('${dateStr}')"
+                onkeydown="if(event.key==='Enter')loadVid('${dateStr}')">
+              <button class="yt-go" onclick="loadVid('${dateStr}')">載入 ▶</button>
+            </div>
+            ${d.ytTitle ? `<div id="yt-title" class="yt-title">${esc(d.ytTitle)}</div>` : `<div id="yt-title" class="yt-title" style="display:none"></div>`}
+          </div>
+          <div id="text-mode-content"${d.contentMode!=='text'?' style="display:none"':''}>
+            <textarea id="text-content" rows="8"
+              placeholder="貼上今日閱讀或練習的短文..."
+              oninput="schedSave('${dateStr}')">${esc(d.textContent||'')}</textarea>
+          </div>
         </div>
       </div>
 
       <!-- Sticky video player (independent from card) -->
-      <div id="yt-sticky-player">
+      <div id="yt-sticky-player"${d.contentMode==='text'?' style="display:none"':''}>
         <div id="yt-box">
           ${vid
             ? `<div class="yt-frame"><iframe src="https://www.youtube.com/embed/${vid}?enablejsapi=1"
@@ -1021,6 +1060,21 @@ async function fetchYtTitle(url) {
   } catch {
     return null;
   }
+}
+
+/* ─── Content mode switch ─── */
+function switchMode(mode, dateStr) {
+  const isVideo = mode === 'video';
+  document.getElementById('mode-video').classList.toggle('active', isVideo);
+  document.getElementById('mode-text').classList.toggle('active', !isVideo);
+  document.getElementById('video-mode-content').style.display = isVideo ? '' : 'none';
+  document.getElementById('text-mode-content').style.display  = isVideo ? 'none' : '';
+  const sp = document.getElementById('yt-sticky-player');
+  if (sp) sp.style.display = isVideo ? '' : 'none';
+  if (!isVideo) clearYtSticky();
+  const titleInput = document.getElementById('content-title');
+  if (titleInput) titleInput.placeholder = isVideo ? '留空則自動帶影片名稱（若有）' : '留空則不顯示於日曆';
+  schedSave(dateStr);
 }
 
 /* ─── Check toggle ─── */
@@ -1214,7 +1268,32 @@ function buildCards(c) {
   return h + '</div>';
 }
 
-/* ─── AI prompt template ─── */
+/* ─── AI prompt templates ─── */
+const PROMPT_TEXT = `請分析以下短文內容的英文學習重點，輸出純 JSON（不含任何說明文字、不含 markdown 代碼塊）：
+
+短文內容：
+{TEXT}
+
+{
+  "phrases": [
+    { "en": "英文片語／句型", "zh": "中文意思", "example": "完整例句", "example_zh": "例句中文翻譯" }
+  ],
+  "words": [
+    { "word": "單字", "phonetic": "/音標/", "zh": "中文意思", "example": "例句", "example_zh": "例句中文翻譯" }
+  ],
+  "prepositions": [
+    { "phrase": "介系詞片語", "zh": "中文意思", "example": "例句", "example_zh": "例句中文翻譯" }
+  ]
+}
+
+規則：
+- phrases：4–8 個值得學習的片語、句型或慣用語
+- words：5–10 個重要單字（含 IPA 音標）
+- prepositions：內容中出現的介系詞用法（無則給 []）
+
+例句方向：優先使用原文中出現的原句或近似句，若無適合句子，再從以下情境擇 1–2 個自行生成：
+生活對話、職場會議、簡報報告、商業談判、面試求職、描述說明、表達意見`;
+
 const PROMPT = `請分析以下 YouTube 影片的英文學習重點，輸出純 JSON（不含任何說明文字、不含 markdown 代碼塊）：
 
 {
@@ -1246,9 +1325,18 @@ const PROMPT = `請分析以下 YouTube 影片的英文學習重點，輸出純 
 - 其他情況禁止回覆說明文字或問題，只輸出 JSON`;
 
 function copyPrompt() {
-  const ytUrl = document.getElementById('yt-url')?.value.trim() || '';
-  const ytLine = ytUrl ? `YouTube 連結：${ytUrl}\n\n` : '';
-  const text = ytLine + PROMPT;
+  const isText = document.getElementById('mode-text')?.classList.contains('active');
+  let text;
+
+  if (isText) {
+    const textContent = document.getElementById('text-content')?.value.trim() || '';
+    if (!textContent) { toast('⚠ 請先貼上短文內容'); return; }
+    text = PROMPT_TEXT.replace('{TEXT}', textContent);
+  } else {
+    const ytUrl = document.getElementById('yt-url')?.value.trim() || '';
+    const ytLine = ytUrl ? `YouTube 連結：${ytUrl}\n\n` : '';
+    text = ytLine + PROMPT;
+  }
 
   const fallback = () => {
     const ta = document.createElement('textarea');
@@ -1359,7 +1447,7 @@ function togglePlayAll() {
 function startPlayAll() {
   if (!window.speechSynthesis) { toast('⚠ 瀏覽器不支援語音'); return; }
   // collect all example texts from ex-row speak buttons
-  const btns = document.querySelectorAll(`.ex-btns .speak-btn[data-lang="${playLang}"]`);
+  const btns = document.querySelectorAll(`.speak-grp-sm .speak-btn[data-lang="${playLang}"]`);
   _playQueue = Array.from(btns).map(b => b.dataset.text).filter(Boolean);
   if (!_playQueue.length) { toast('⚠ 沒有例句，請先解析 AI 內容'); return; }
   _playIdx = 0;
